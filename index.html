@@ -119,8 +119,11 @@
   </div>
 
   <div class="panel">
-    <label for="rawInput">Raw description</label>
-    <textarea id="rawInput" placeholder="e.g. LeadMapper Pro finds hotel leads in a city, scores them hot/warm/cold, and gives contact info so you can pitch them your service..."></textarea>
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+      <label for="rawInput" style="margin-bottom:0;">Raw description</label>
+      <button type="button" id="clearInputBtn" style="margin:0; background:transparent; border:1px solid var(--border); color:var(--muted); font-size:12px; padding:4px 10px;">Clear</button>
+    </div>
+    <textarea id="rawInput" style="margin-top:6px;" placeholder="e.g. LeadMapper Pro finds hotel leads in a city, scores them hot/warm/cold, and gives contact info so you can pitch them your service..."></textarea>
 
     <div class="row">
       <div>
@@ -155,8 +158,12 @@
         <input type="checkbox" id="useEmojis" style="width:auto; margin:0;" />
         <label for="useEmojis" style="margin:0; cursor:pointer;">Include emojis</label>
       </div>
+      <div style="display:flex; align-items:center; gap:8px; flex:0 0 auto;">
+        <input type="checkbox" id="painPointFirst" style="width:auto; margin:0;" />
+        <label for="painPointFirst" style="margin:0; cursor:pointer;">Pain-point first</label>
+      </div>
     </div>
-    <div class="hint" style="margin-top:6px;">NOT statements = contrast framing, e.g. "This isn't another lead list. It's a pre-qualified pipeline in your inbox by 9am." Emojis are kept light: 1-2 per variant, relevant to the subject, no spam.</div>
+    <div class="hint" style="margin-top:6px;">NOT statements = contrast framing, e.g. "This isn't another lead list. It's a pre-qualified pipeline in your inbox by 9am." Emojis are kept light: 1-2 per variant, relevant to the subject, no spam. Pain-point first opens with the reader's specific frustration before introducing the solution.</div>
 
     <button type="button" class="settings-toggle" id="toggleSettings">API settings</button>
     <div id="settingsPanel">
@@ -193,9 +200,16 @@ const toneSelect = document.getElementById("tone");
 const variantsSelect = document.getElementById("variants");
 const notStatementsInput = document.getElementById("notStatements");
 const useEmojisInput = document.getElementById("useEmojis");
+const painPointFirstInput = document.getElementById("painPointFirst");
+const clearInputBtn = document.getElementById("clearInputBtn");
 const output = document.getElementById("output");
 const errorEl = document.getElementById("error");
 const loadingEl = document.getElementById("loading");
+
+clearInputBtn.addEventListener("click", () => {
+  rawInput.value = "";
+  rawInput.focus();
+});
 
 const savedKey = localStorage.getItem(API_KEY_STORAGE);
 if (savedKey) {
@@ -231,7 +245,7 @@ function clearError() {
   errorEl.textContent = "";
 }
 
-function buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis) {
+function buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst) {
   return `You are a direct-response copywriter. Rewrite the raw product/service description below into ${count} distinct polished sales copy variant(s) using the NEW / EASY / SAFE / BIG hook framework:
 
 - NEW: frame the offer as new, a fresh way, recently launched, or a shift from the old way.
@@ -247,6 +261,9 @@ Each variant's headline or opening line of the body must use a NOT statement: ki
 ` : ""}
 ${useEmojis ? `
 Sprinkle in 1-2 emojis per variant that are directly relevant to the subject matter. Keep it light and tasteful, not spammy: no emoji at the start of every line, no strings of multiple emojis in a row.
+` : ""}
+${painPointFirst ? `
+Each variant must open with the reader's specific pain point or frustration (concrete, not generic "tired of X?" filler) before pivoting to the solution. The pain point should feel like it was written by someone who has actually lived it.
 ` : ""}
 ${audience ? `Target audience: ${audience}\n` : ""}Tone: ${tone}
 
@@ -303,6 +320,63 @@ function parseVariants(text) {
   return parsed.variants;
 }
 
+const PLATFORM_GUIDES = {
+  facebook: {
+    label: "Facebook",
+    instructions: `Format as a Facebook ad/post: open with a scroll-stopping hook as the first line. Conversational tone, short paragraphs (1-2 sentences) separated by line breaks. Keep the total post under 125 words. No hashtags. End with one direct, clear CTA line.`
+  },
+  instagram: {
+    label: "Instagram",
+    instructions: `Format as an Instagram caption: strong hook as the first line, written to accompany a photo or reel. Short punchy lines separated by line breaks. End with 3-5 specific, non-generic hashtags on their own line.`
+  },
+  tiktok: {
+    label: "TikTok",
+    instructions: `Format as a TikTok caption for a short video: hook as the very first words (curiosity-driven, under 10 words), casual native creator voice, not ad copy. Keep the whole caption under 150 characters. Include 2-4 relevant hashtags inline at the end.`
+  },
+  pinterest: {
+    label: "Pinterest",
+    instructions: `Format as a Pinterest Pin title + description: title under 100 characters, benefit-driven and keyword-rich. Description under 500 characters, written for search with natural keywords, ending with a save/click-oriented CTA.`
+  },
+  youtube: {
+    label: "YouTube",
+    instructions: `Format as a YouTube video title + description opener: title under 60 characters, curiosity or benefit driven, no unearned clickbait. Description is the first 2-3 lines shown before "Show more", written to earn the click into the full description, ending with a subscribe/watch CTA.`
+  },
+  x: {
+    label: "X (Twitter)",
+    instructions: `Format as a single X post: the entire post including any hashtags and CTA must fit within 280 characters. Punchy, direct, no fluff. At most 1-2 hashtags, only if they add real discoverability. CTA integrated naturally into the sentence, not tacked on separately.`
+  }
+};
+
+function buildPlatformPrompt(variant, platformKey) {
+  const guide = PLATFORM_GUIDES[platformKey];
+  return `You are a social media copywriter. Adapt the following sales copy into a native ${guide.label} post. Keep the core offer and the NEW/EASY/SAFE/BIG angle intact, but restructure and rewrite it to fit the platform's real norms, not just paste the original text in.
+
+${guide.instructions}
+
+Do not use em dashes (—) anywhere in the output. Use periods, commas, or parentheses instead.
+
+Source copy:
+Headline: ${variant.headline}
+Body: ${variant.body}
+CTA: ${variant.cta}
+
+Return ONLY valid JSON (no markdown fences, no commentary) matching this exact shape:
+{
+  "post_text": "string (the full native post text, with line breaks written as \\n and hashtags included inline where the platform calls for them)",
+  "cta": "string (short call to action; if the platform's CTA is naturally embedded in post_text, repeat the essence of it here too)"
+}`;
+}
+
+function parsePlatformResult(text) {
+  let cleaned = text.trim();
+  cleaned = cleaned.replace(/^```(json)?/i, "").replace(/```$/, "").trim();
+  const parsed = JSON.parse(cleaned);
+  if (!parsed.post_text) {
+    throw new Error("Unexpected response shape from model.");
+  }
+  return parsed;
+}
+
 function renderVariants(variants) {
   output.innerHTML = "";
   variants.forEach((v, i) => {
@@ -314,6 +388,10 @@ function renderVariants(variants) {
       `<span class="badge ${tagColors[l] || ''}">${l}</span>`
     ).join("");
 
+    const platformButtons = Object.entries(PLATFORM_GUIDES).map(([key, guide]) =>
+      `<button type="button" class="copy-btn platform-btn" data-index="${i}" data-platform="${key}">${guide.label}</button>`
+    ).join("");
+
     card.innerHTML = `
       <h3>Variant ${i + 1}</h3>
       <div class="headline">${escapeHtml(v.headline || "")}</div>
@@ -321,12 +399,15 @@ function renderVariants(variants) {
       <div class="cta">${escapeHtml(v.cta || "")}</div>
       <div class="tags">${tags}</div>
       <button type="button" class="copy-btn" data-index="${i}">Copy text</button>
+      <div class="hint" style="margin-top:14px; margin-bottom:6px;">Adapt for platform:</div>
+      <div class="tags">${platformButtons}</div>
+      <div class="platform-results" data-index="${i}"></div>
     `;
     output.appendChild(card);
   });
   output.style.display = "block";
 
-  output.querySelectorAll(".copy-btn").forEach(btn => {
+  output.querySelectorAll(".copy-btn:not(.platform-btn)").forEach(btn => {
     btn.addEventListener("click", () => {
       const idx = Number(btn.dataset.index);
       const v = variants[idx];
@@ -335,6 +416,69 @@ function renderVariants(variants) {
         btn.textContent = "Copied!";
         setTimeout(() => (btn.textContent = "Copy text"), 1500);
       });
+    });
+  });
+
+  output.querySelectorAll(".platform-btn").forEach(btn => {
+    btn.addEventListener("click", () => handlePlatformAdapt(btn, variants));
+  });
+}
+
+async function handlePlatformAdapt(btn, variants) {
+  const idx = Number(btn.dataset.index);
+  const platformKey = btn.dataset.platform;
+  const variant = variants[idx];
+  const apiKey = apiKeyInput.value.trim();
+
+  if (!apiKey) {
+    showError("Enter your OpenRouter API key in API settings.");
+    settingsPanel.classList.add("open");
+    return;
+  }
+
+  const resultsContainer = output.querySelector(`.platform-results[data-index="${idx}"]`);
+  const guide = PLATFORM_GUIDES[platformKey];
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = `${guide.label}...`;
+
+  try {
+    const prompt = buildPlatformPrompt(variant, platformKey);
+    const text = await callOpenRouter(apiKey, prompt);
+    const result = parsePlatformResult(text);
+    renderPlatformResult(resultsContainer, platformKey, result);
+  } catch (err) {
+    showError(err.message || "Something went wrong adapting for that platform.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+}
+
+function renderPlatformResult(container, platformKey, result) {
+  const guide = PLATFORM_GUIDES[platformKey];
+  let card = container.querySelector(`[data-platform-card="${platformKey}"]`);
+  if (!card) {
+    card = document.createElement("div");
+    card.dataset.platformCard = platformKey;
+    card.className = "variant";
+    card.style.background = "#0d0f14";
+    container.appendChild(card);
+  }
+
+  const fullText = `${result.post_text}${result.cta ? `\n\n${result.cta}` : ""}`;
+
+  card.innerHTML = `
+    <h3>${guide.label} version</h3>
+    <div class="body">${escapeHtml(result.post_text || "")}</div>
+    ${result.cta ? `<div class="cta">${escapeHtml(result.cta)}</div>` : ""}
+    <button type="button" class="copy-btn platform-copy-btn">Copy text</button>
+  `;
+
+  card.querySelector(".platform-copy-btn").addEventListener("click", (e) => {
+    navigator.clipboard.writeText(fullText).then(() => {
+      e.target.textContent = "Copied!";
+      setTimeout(() => (e.target.textContent = "Copy text"), 1500);
     });
   });
 }
@@ -356,6 +500,7 @@ generateBtn.addEventListener("click", async () => {
   const count = variantsSelect.value;
   const useNotStatements = notStatementsInput.checked;
   const useEmojis = useEmojisInput.checked;
+  const painPointFirst = painPointFirstInput.checked;
 
   if (!raw) { showError("Paste a raw description first."); return; }
   if (!apiKey) {
@@ -370,7 +515,7 @@ generateBtn.addEventListener("click", async () => {
   loadingEl.style.display = "block";
 
   try {
-    const prompt = buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis);
+    const prompt = buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst);
     const text = await callOpenRouter(apiKey, prompt);
     const variants = parseVariants(text);
     renderVariants(variants);
