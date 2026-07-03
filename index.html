@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sales Copy Converter — NEW / EASY / SAFE / BIG</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #2a2f3a;
+    --text: #e8eaed;
+    --muted: #9aa2af;
+    --accent: #4f7dff;
+    --accent-hover: #6b91ff;
+    --new: #3fb950;
+    --easy: #58a6ff;
+    --safe: #d29922;
+    --big: #f778ba;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 32px 16px 80px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  .badges { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+  .badge {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+    padding: 4px 10px; border-radius: 100px; color: #0f1115;
+  }
+  .badge.new { background: var(--new); }
+  .badge.easy { background: var(--easy); }
+  .badge.safe { background: var(--safe); }
+  .badge.big { background: var(--big); }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  textarea, input[type="text"], input[type="password"], select {
+    width: 100%;
+    background: #0d0f14;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+  }
+  textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent); }
+  textarea#rawInput { min-height: 160px; }
+  .row { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+  .row > div { flex: 1; min-width: 140px; }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 16px;
+  }
+  button:hover { background: var(--accent-hover); }
+  button:disabled { background: #3a3f4b; cursor: not-allowed; }
+  .settings-toggle {
+    background: none; color: var(--muted); font-size: 12px; padding: 0;
+    margin: 0 0 16px 0; text-decoration: underline; font-weight: 400;
+  }
+  .settings-toggle:hover { color: var(--text); background: none; }
+  #settingsPanel { display: none; }
+  #settingsPanel.open { display: block; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  #output { display: none; }
+  .variant {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 14px;
+    background: #12141a;
+  }
+  .variant h3 { margin: 0 0 8px; font-size: 13px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; }
+  .variant .headline { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+  .variant .body { font-size: 14px; color: #cdd3dc; white-space: pre-wrap; margin-bottom: 10px; }
+  .variant .cta { display: inline-block; background: var(--accent); color: white; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+  .variant .tags { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .copy-btn {
+    margin-top: 10px; background: transparent; border: 1px solid var(--border);
+    color: var(--muted); font-size: 12px; padding: 5px 10px;
+  }
+  .copy-btn:hover { color: var(--text); border-color: var(--accent); background: transparent; }
+  #error { display: none; color: #f85149; font-size: 13px; margin-top: 10px; }
+  #loading { display: none; color: var(--muted); font-size: 13px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sales Copy Converter</h1>
+  <div class="subtitle">Paste a raw description. Get it rewritten using the NEW / EASY / SAFE / BIG hook framework.</div>
+  <div class="badges">
+    <span class="badge new">NEW</span>
+    <span class="badge easy">EASY</span>
+    <span class="badge safe">SAFE</span>
+    <span class="badge big">BIG</span>
+  </div>
+
+  <div class="panel">
+    <label for="rawInput">Raw description</label>
+    <textarea id="rawInput" placeholder="e.g. LeadMapper Pro finds hotel leads in a city, scores them hot/warm/cold, and gives contact info so you can pitch them your service..."></textarea>
+
+    <div class="row">
+      <div>
+        <label for="audience">Target audience (optional)</label>
+        <input type="text" id="audience" placeholder="e.g. boutique hotel owners" />
+      </div>
+      <div>
+        <label for="tone">Tone</label>
+        <select id="tone">
+          <option value="confident, direct, no fluff">Confident & direct</option>
+          <option value="friendly and conversational">Friendly & conversational</option>
+          <option value="urgent and high-energy">Urgent & high-energy</option>
+          <option value="premium and understated">Premium & understated</option>
+        </select>
+      </div>
+      <div>
+        <label for="variants">Number of variants</label>
+        <select id="variants">
+          <option value="1">1</option>
+          <option value="3" selected>3</option>
+          <option value="5">5</option>
+        </select>
+      </div>
+    </div>
+
+    <button type="button" class="settings-toggle" id="toggleSettings">API settings</button>
+    <div id="settingsPanel">
+      <label for="apiKey">OpenRouter API key</label>
+      <input type="password" id="apiKey" placeholder="sk-or-..." />
+      <div class="hint">Stored only in your browser's localStorage, sent directly to OpenRouter from this page. Never sent anywhere else. Get a key at openrouter.ai/keys.</div>
+    </div>
+
+    <button type="button" id="generateBtn">Generate sales copy</button>
+    <div id="loading">Generating...</div>
+    <div id="error"></div>
+  </div>
+
+  <div id="output"></div>
+</div>
+
+<script>
+const API_KEY_STORAGE = "copyConverter_openrouterKey";
+const MODEL = "anthropic/claude-sonnet-4.5";
+
+const toggleBtn = document.getElementById("toggleSettings");
+const settingsPanel = document.getElementById("settingsPanel");
+const apiKeyInput = document.getElementById("apiKey");
+const generateBtn = document.getElementById("generateBtn");
+const rawInput = document.getElementById("rawInput");
+const audienceInput = document.getElementById("audience");
+const toneSelect = document.getElementById("tone");
+const variantsSelect = document.getElementById("variants");
+const output = document.getElementById("output");
+const errorEl = document.getElementById("error");
+const loadingEl = document.getElementById("loading");
+
+const savedKey = localStorage.getItem(API_KEY_STORAGE);
+if (savedKey) apiKeyInput.value = savedKey;
+if (!savedKey) settingsPanel.classList.add("open");
+
+toggleBtn.addEventListener("click", () => {
+  settingsPanel.classList.toggle("open");
+});
+
+function showError(msg) {
+  errorEl.textContent = msg;
+  errorEl.style.display = "block";
+}
+function clearError() {
+  errorEl.style.display = "none";
+  errorEl.textContent = "";
+}
+
+function buildPrompt(raw, audience, tone, count) {
+  return `You are a direct-response copywriter. Rewrite the raw product/service description below into ${count} distinct polished sales copy variant(s) using the NEW / EASY / SAFE / BIG hook framework:
+
+- NEW: frame the offer as new, a fresh way, recently launched, or a shift from the old way.
+- EASY: emphasize low effort, speed, or simplicity — remove friction/complexity objections.
+- SAFE: reduce risk — guarantees, no commitment, trust signals, proof.
+- BIG: make the outcome/promise feel large, specific, and worth acting on.
+
+Each variant must clearly use at least 3 of these 4 levers, and should read like real marketing copy, not a listicle explaining the technique.
+
+${audience ? `Target audience: ${audience}\n` : ""}Tone: ${tone}
+
+Raw description:
+"""
+${raw}
+"""
+
+Return ONLY valid JSON (no markdown fences, no commentary) matching this exact shape:
+{
+  "variants": [
+    {
+      "headline": "string",
+      "body": "string (2-4 sentences)",
+      "cta": "string (short call to action)",
+      "levers_used": ["NEW","EASY","SAFE","BIG"]
+    }
+  ]
+}`;
+}
+
+async function callOpenRouter(apiKey, prompt) {
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+      "HTTP-Referer": window.location.origin,
+      "X-Title": "Sales Copy Converter"
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 2000,
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`API error ${res.status}: ${errBody.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content || "";
+  return text;
+}
+
+function parseVariants(text) {
+  let cleaned = text.trim();
+  cleaned = cleaned.replace(/^```(json)?/i, "").replace(/```$/, "").trim();
+  const parsed = JSON.parse(cleaned);
+  if (!parsed.variants || !Array.isArray(parsed.variants)) {
+    throw new Error("Unexpected response shape from model.");
+  }
+  return parsed.variants;
+}
+
+function renderVariants(variants) {
+  output.innerHTML = "";
+  variants.forEach((v, i) => {
+    const card = document.createElement("div");
+    card.className = "variant";
+
+    const tagColors = { NEW: "new", EASY: "easy", SAFE: "safe", BIG: "big" };
+    const tags = (v.levers_used || []).map(l =>
+      `<span class="badge ${tagColors[l] || ''}">${l}</span>`
+    ).join("");
+
+    card.innerHTML = `
+      <h3>Variant ${i + 1}</h3>
+      <div class="headline">${escapeHtml(v.headline || "")}</div>
+      <div class="body">${escapeHtml(v.body || "")}</div>
+      <div class="cta">${escapeHtml(v.cta || "")}</div>
+      <div class="tags">${tags}</div>
+      <button type="button" class="copy-btn" data-index="${i}">Copy text</button>
+    `;
+    output.appendChild(card);
+  });
+  output.style.display = "block";
+
+  output.querySelectorAll(".copy-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.dataset.index);
+      const v = variants[idx];
+      const text = `${v.headline}\n\n${v.body}\n\n${v.cta}`;
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = "Copied!";
+        setTimeout(() => (btn.textContent = "Copy text"), 1500);
+      });
+    });
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+generateBtn.addEventListener("click", async () => {
+  clearError();
+  output.style.display = "none";
+
+  const raw = rawInput.value.trim();
+  const apiKey = apiKeyInput.value.trim();
+  const audience = audienceInput.value.trim();
+  const tone = toneSelect.value;
+  const count = variantsSelect.value;
+
+  if (!raw) { showError("Paste a raw description first."); return; }
+  if (!apiKey) {
+    showError("Enter your OpenRouter API key in API settings.");
+    settingsPanel.classList.add("open");
+    return;
+  }
+
+  localStorage.setItem(API_KEY_STORAGE, apiKey);
+
+  generateBtn.disabled = true;
+  loadingEl.style.display = "block";
+
+  try {
+    const prompt = buildPrompt(raw, audience, tone, count);
+    const text = await callOpenRouter(apiKey, prompt);
+    const variants = parseVariants(text);
+    renderVariants(variants);
+  } catch (err) {
+    showError(err.message || "Something went wrong.");
+  } finally {
+    generateBtn.disabled = false;
+    loadingEl.style.display = "none";
+  }
+});
+</script>
+</body>
+</html>
