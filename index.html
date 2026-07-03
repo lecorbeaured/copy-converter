@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>Sales Copy Converter — NEW / EASY / SAFE / BIG</title>
+<title>Sales Copy Converter: NEW / EASY / SAFE / BIG</title>
 <style>
   :root {
     --bg: #0f1115;
@@ -221,11 +221,13 @@ function buildPrompt(raw, audience, tone, count) {
   return `You are a direct-response copywriter. Rewrite the raw product/service description below into ${count} distinct polished sales copy variant(s) using the NEW / EASY / SAFE / BIG hook framework:
 
 - NEW: frame the offer as new, a fresh way, recently launched, or a shift from the old way.
-- EASY: emphasize low effort, speed, or simplicity — remove friction/complexity objections.
-- SAFE: reduce risk — guarantees, no commitment, trust signals, proof.
+- EASY: emphasize low effort, speed, or simplicity. Remove friction/complexity objections.
+- SAFE: reduce risk. Guarantees, no commitment, trust signals, proof.
 - BIG: make the outcome/promise feel large, specific, and worth acting on.
 
 Each variant must clearly use at least 3 of these 4 levers, and should read like real marketing copy, not a listicle explaining the technique.
+
+Do not use em dashes (—) anywhere in the output. Use periods, commas, or parentheses instead.
 
 ${audience ? `Target audience: ${audience}\n` : ""}Tone: ${tone}
 
