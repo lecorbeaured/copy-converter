@@ -146,6 +146,14 @@
       </div>
     </div>
 
+    <div class="row">
+      <div style="display:flex; align-items:center; gap:8px; flex:0 0 auto;">
+        <input type="checkbox" id="notStatements" style="width:auto; margin:0;" />
+        <label for="notStatements" style="margin:0; cursor:pointer;">Include NOT statements</label>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:6px;">Contrast framing, e.g. "This isn't another lead list. It's a pre-qualified pipeline in your inbox by 9am."</div>
+
     <button type="button" class="settings-toggle" id="toggleSettings">API settings</button>
     <div id="settingsPanel">
       <label for="apiKey">OpenRouter API key</label>
@@ -179,6 +187,7 @@ const rawInput = document.getElementById("rawInput");
 const audienceInput = document.getElementById("audience");
 const toneSelect = document.getElementById("tone");
 const variantsSelect = document.getElementById("variants");
+const notStatementsInput = document.getElementById("notStatements");
 const output = document.getElementById("output");
 const errorEl = document.getElementById("error");
 const loadingEl = document.getElementById("loading");
@@ -217,7 +226,7 @@ function clearError() {
   errorEl.textContent = "";
 }
 
-function buildPrompt(raw, audience, tone, count) {
+function buildPrompt(raw, audience, tone, count, useNotStatements) {
   return `You are a direct-response copywriter. Rewrite the raw product/service description below into ${count} distinct polished sales copy variant(s) using the NEW / EASY / SAFE / BIG hook framework:
 
 - NEW: frame the offer as new, a fresh way, recently launched, or a shift from the old way.
@@ -228,7 +237,9 @@ function buildPrompt(raw, audience, tone, count) {
 Each variant must clearly use at least 3 of these 4 levers, and should read like real marketing copy, not a listicle explaining the technique.
 
 Do not use em dashes (—) anywhere in the output. Use periods, commas, or parentheses instead.
-
+${useNotStatements ? `
+Each variant's headline or opening line of the body must use a NOT statement: kill a wrong assumption before making the real claim, in the form "This isn't [common thing/false belief]. It's [the real thing]." Make the contrast specific to the product, not generic.
+` : ""}
 ${audience ? `Target audience: ${audience}\n` : ""}Tone: ${tone}
 
 Raw description:
@@ -335,6 +346,7 @@ generateBtn.addEventListener("click", async () => {
   const audience = audienceInput.value.trim();
   const tone = toneSelect.value;
   const count = variantsSelect.value;
+  const useNotStatements = notStatementsInput.checked;
 
   if (!raw) { showError("Paste a raw description first."); return; }
   if (!apiKey) {
@@ -349,7 +361,7 @@ generateBtn.addEventListener("click", async () => {
   loadingEl.style.display = "block";
 
   try {
-    const prompt = buildPrompt(raw, audience, tone, count);
+    const prompt = buildPrompt(raw, audience, tone, count, useNotStatements);
     const text = await callOpenRouter(apiKey, prompt);
     const variants = parseVariants(text);
     renderVariants(variants);
