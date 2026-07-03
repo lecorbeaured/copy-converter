@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>Sales Copy Converter — NEW / EASY / SAFE / BIG</title>
 <style>
   :root {
@@ -148,7 +149,11 @@
     <button type="button" class="settings-toggle" id="toggleSettings">API settings</button>
     <div id="settingsPanel">
       <label for="apiKey">OpenRouter API key</label>
-      <input type="password" id="apiKey" placeholder="sk-or-..." />
+      <div class="row" style="margin-top:0;">
+        <div><input type="password" id="apiKey" placeholder="sk-or-..." /></div>
+        <div style="flex:0;"><button type="button" id="saveKeyBtn" style="margin-top:0;">Save key</button></div>
+      </div>
+      <div id="keyStatus" class="hint"></div>
       <div class="hint">Stored only in your browser's localStorage, sent directly to OpenRouter from this page. Never sent anywhere else. Get a key at openrouter.ai/keys.</div>
     </div>
 
@@ -167,6 +172,8 @@ const MODEL = "anthropic/claude-sonnet-4.5";
 const toggleBtn = document.getElementById("toggleSettings");
 const settingsPanel = document.getElementById("settingsPanel");
 const apiKeyInput = document.getElementById("apiKey");
+const saveKeyBtn = document.getElementById("saveKeyBtn");
+const keyStatus = document.getElementById("keyStatus");
 const generateBtn = document.getElementById("generateBtn");
 const rawInput = document.getElementById("rawInput");
 const audienceInput = document.getElementById("audience");
@@ -177,12 +184,29 @@ const errorEl = document.getElementById("error");
 const loadingEl = document.getElementById("loading");
 
 const savedKey = localStorage.getItem(API_KEY_STORAGE);
-if (savedKey) apiKeyInput.value = savedKey;
+if (savedKey) {
+  apiKeyInput.value = savedKey;
+  keyStatus.textContent = "✓ Key saved in this browser.";
+}
 if (!savedKey) settingsPanel.classList.add("open");
 
 toggleBtn.addEventListener("click", () => {
   settingsPanel.classList.toggle("open");
 });
+
+function saveKey() {
+  const key = apiKeyInput.value.trim();
+  if (!key) {
+    keyStatus.textContent = "";
+    return;
+  }
+  localStorage.setItem(API_KEY_STORAGE, key);
+  keyStatus.textContent = "✓ Key saved in this browser.";
+}
+
+saveKeyBtn.addEventListener("click", saveKey);
+apiKeyInput.addEventListener("blur", saveKey);
+apiKeyInput.addEventListener("paste", () => setTimeout(saveKey, 0));
 
 function showError(msg) {
   errorEl.textContent = msg;
