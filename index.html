@@ -150,6 +150,14 @@
     </div>
 
     <div class="row">
+      <div>
+        <label for="ctaLink">CTA link (optional)</label>
+        <input type="text" id="ctaLink" placeholder="e.g. https://leadmapperpro.com/trial" />
+      </div>
+    </div>
+    <div class="hint" style="margin-top:6px;">If set, gets woven into the CTA in every output. On formats where raw links don't work in the text (Instagram, TikTok, voiceover), it's referenced as "link in bio" instead of pasted directly.</div>
+
+    <div class="row">
       <div style="display:flex; align-items:center; gap:8px; flex:0 0 auto;">
         <input type="checkbox" id="notStatements" style="width:auto; margin:0;" />
         <label for="notStatements" style="margin:0; cursor:pointer;">Include NOT statements</label>
@@ -201,6 +209,7 @@ const variantsSelect = document.getElementById("variants");
 const notStatementsInput = document.getElementById("notStatements");
 const useEmojisInput = document.getElementById("useEmojis");
 const painPointFirstInput = document.getElementById("painPointFirst");
+const ctaLinkInput = document.getElementById("ctaLink");
 const clearInputBtn = document.getElementById("clearInputBtn");
 const output = document.getElementById("output");
 const errorEl = document.getElementById("error");
@@ -245,7 +254,17 @@ function clearError() {
   errorEl.textContent = "";
 }
 
-function buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst) {
+const NO_RAW_LINK_FORMATS = new Set(["instagram", "tiktok", "voiceover"]);
+
+function buildCtaInstruction(ctaLink, platformKey) {
+  if (!ctaLink) return "";
+  if (platformKey && NO_RAW_LINK_FORMATS.has(platformKey)) {
+    return `\nA CTA link has been provided (${ctaLink}), but this format doesn't support clickable links in the text itself. Reference it naturally without pasting the raw URL, e.g. "link in bio" or "tap the link" (for a voiceover script, say it as spoken words like "link in my bio"). Do not print or read out the literal URL.\n`;
+  }
+  return `\nA CTA link has been provided: ${ctaLink}. Naturally weave this exact link into the cta so the reader knows exactly where to go.\n`;
+}
+
+function buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst, ctaLink) {
   return `You are a direct-response copywriter. Rewrite the raw product/service description below into ${count} distinct polished sales copy variant(s) using the NEW / EASY / SAFE / BIG hook framework:
 
 - NEW: frame the offer as new, a fresh way, recently launched, or a shift from the old way.
@@ -265,6 +284,7 @@ Sprinkle in 1-2 emojis per variant that are directly relevant to the subject mat
 ${painPointFirst ? `
 Each variant must open with the reader's specific pain point or frustration (concrete, not generic "tired of X?" filler) before pivoting to the solution. The pain point should feel like it was written by someone who has actually lived it.
 ` : ""}
+${buildCtaInstruction(ctaLink)}
 ${audience ? `Target audience: ${audience}\n` : ""}Tone: ${tone}
 
 Raw description:
@@ -351,14 +371,14 @@ const PLATFORM_GUIDES = {
   }
 };
 
-function buildPlatformPrompt(variant, platformKey) {
+function buildPlatformPrompt(variant, platformKey, ctaLink) {
   const guide = PLATFORM_GUIDES[platformKey];
   return `You are an expert copywriter. Adapt the following sales copy for ${guide.label}, following the format rules below exactly. Keep the core offer and the NEW/EASY/SAFE/BIG angle intact, but restructure and rewrite it to fit the format's real norms, not just paste the original text in.
 
 ${guide.instructions}
 
 Do not use em dashes (—) anywhere in the output. Use periods, commas, or parentheses instead.
-
+${buildCtaInstruction(ctaLink, platformKey)}
 Source copy:
 Headline: ${variant.headline}
 Body: ${variant.body}
@@ -447,7 +467,8 @@ async function handlePlatformAdapt(btn, variants) {
   btn.textContent = `${guide.label}...`;
 
   try {
-    const prompt = buildPlatformPrompt(variant, platformKey);
+    const ctaLink = ctaLinkInput.value.trim();
+    const prompt = buildPlatformPrompt(variant, platformKey, ctaLink);
     const text = await callOpenRouter(apiKey, prompt);
     const result = parsePlatformResult(text);
     renderPlatformResult(resultsContainer, platformKey, result);
@@ -505,6 +526,7 @@ generateBtn.addEventListener("click", async () => {
   const useNotStatements = notStatementsInput.checked;
   const useEmojis = useEmojisInput.checked;
   const painPointFirst = painPointFirstInput.checked;
+  const ctaLink = ctaLinkInput.value.trim();
 
   if (!raw) { showError("Paste a raw description first."); return; }
   if (!apiKey) {
@@ -519,7 +541,7 @@ generateBtn.addEventListener("click", async () => {
   loadingEl.style.display = "block";
 
   try {
-    const prompt = buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst);
+    const prompt = buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst, ctaLink);
     const text = await callOpenRouter(apiKey, prompt);
     const variants = parseVariants(text);
     renderVariants(variants);
