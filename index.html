@@ -151,8 +151,12 @@
         <input type="checkbox" id="notStatements" style="width:auto; margin:0;" />
         <label for="notStatements" style="margin:0; cursor:pointer;">Include NOT statements</label>
       </div>
+      <div style="display:flex; align-items:center; gap:8px; flex:0 0 auto;">
+        <input type="checkbox" id="useEmojis" style="width:auto; margin:0;" />
+        <label for="useEmojis" style="margin:0; cursor:pointer;">Include emojis</label>
+      </div>
     </div>
-    <div class="hint" style="margin-top:6px;">Contrast framing, e.g. "This isn't another lead list. It's a pre-qualified pipeline in your inbox by 9am."</div>
+    <div class="hint" style="margin-top:6px;">NOT statements = contrast framing, e.g. "This isn't another lead list. It's a pre-qualified pipeline in your inbox by 9am." Emojis are kept light: 1-2 per variant, relevant to the subject, no spam.</div>
 
     <button type="button" class="settings-toggle" id="toggleSettings">API settings</button>
     <div id="settingsPanel">
@@ -188,6 +192,7 @@ const audienceInput = document.getElementById("audience");
 const toneSelect = document.getElementById("tone");
 const variantsSelect = document.getElementById("variants");
 const notStatementsInput = document.getElementById("notStatements");
+const useEmojisInput = document.getElementById("useEmojis");
 const output = document.getElementById("output");
 const errorEl = document.getElementById("error");
 const loadingEl = document.getElementById("loading");
@@ -226,7 +231,7 @@ function clearError() {
   errorEl.textContent = "";
 }
 
-function buildPrompt(raw, audience, tone, count, useNotStatements) {
+function buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis) {
   return `You are a direct-response copywriter. Rewrite the raw product/service description below into ${count} distinct polished sales copy variant(s) using the NEW / EASY / SAFE / BIG hook framework:
 
 - NEW: frame the offer as new, a fresh way, recently launched, or a shift from the old way.
@@ -239,6 +244,9 @@ Each variant must clearly use at least 3 of these 4 levers, and should read like
 Do not use em dashes (—) anywhere in the output. Use periods, commas, or parentheses instead.
 ${useNotStatements ? `
 Each variant's headline or opening line of the body must use a NOT statement: kill a wrong assumption before making the real claim, in the form "This isn't [common thing/false belief]. It's [the real thing]." Make the contrast specific to the product, not generic.
+` : ""}
+${useEmojis ? `
+Sprinkle in 1-2 emojis per variant that are directly relevant to the subject matter. Keep it light and tasteful, not spammy: no emoji at the start of every line, no strings of multiple emojis in a row.
 ` : ""}
 ${audience ? `Target audience: ${audience}\n` : ""}Tone: ${tone}
 
@@ -347,6 +355,7 @@ generateBtn.addEventListener("click", async () => {
   const tone = toneSelect.value;
   const count = variantsSelect.value;
   const useNotStatements = notStatementsInput.checked;
+  const useEmojis = useEmojisInput.checked;
 
   if (!raw) { showError("Paste a raw description first."); return; }
   if (!apiKey) {
@@ -361,7 +370,7 @@ generateBtn.addEventListener("click", async () => {
   loadingEl.style.display = "block";
 
   try {
-    const prompt = buildPrompt(raw, audience, tone, count, useNotStatements);
+    const prompt = buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis);
     const text = await callOpenRouter(apiKey, prompt);
     const variants = parseVariants(text);
     renderVariants(variants);
