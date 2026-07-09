@@ -147,6 +147,16 @@
           <option value="5">5</option>
         </select>
       </div>
+      <div>
+        <label for="structure">Structure</label>
+        <select id="structure">
+          <option value="default" selected>Default (NEW/EASY/SAFE/BIG only)</option>
+          <option value="pas">PAS: Problem &rarr; Agitate &rarr; Solution</option>
+          <option value="aida">AIDA: Attention &rarr; Interest &rarr; Desire &rarr; Action</option>
+          <option value="pain_problem_hope">Pain &rarr; Problem &rarr; Hope &rarr; Identity &rarr; Proof &rarr; Offer &rarr; CTA</option>
+          <option value="curiosity_pain_hope">Curiosity &rarr; Pain &rarr; Hope &rarr; Outcome</option>
+        </select>
+      </div>
     </div>
 
     <div class="row">
@@ -210,6 +220,7 @@ const notStatementsInput = document.getElementById("notStatements");
 const useEmojisInput = document.getElementById("useEmojis");
 const painPointFirstInput = document.getElementById("painPointFirst");
 const ctaLinkInput = document.getElementById("ctaLink");
+const structureSelect = document.getElementById("structure");
 const clearInputBtn = document.getElementById("clearInputBtn");
 const output = document.getElementById("output");
 const errorEl = document.getElementById("error");
@@ -264,7 +275,20 @@ function buildCtaInstruction(ctaLink, platformKey) {
   return `\nA CTA link has been provided: ${ctaLink}. Naturally weave this exact link into the cta so the reader knows exactly where to go.\n`;
 }
 
-function buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst, ctaLink) {
+const STRUCTURE_GUIDES = {
+  pas: `Structure each variant using PAS (Problem → Agitate → Solution): open by naming the reader's problem, agitate it by making the cost or pain of inaction vivid and specific, then present the offer as the solution.`,
+  aida: `Structure each variant using AIDA (Attention → Interest → Desire → Action): grab attention with a bold hook, build interest with a relevant detail or fact, create desire by painting the outcome, then close with a clear action step.`,
+  pain_problem_hope: `Structure each variant using Pain → Problem → Hope → Identity → Proof → Offer → CTA: open with the reader's pain, name the underlying problem causing it, introduce hope that it's solvable, speak to the identity or kind of person this is for, back it with proof (specifics, numbers, or social proof), present the offer, then close with a clear CTA.`,
+  curiosity_pain_hope: `Structure each variant using Curiosity → Pain → Hope → Outcome: open with a curiosity-driven hook, surface the reader's pain, offer hope that there's a way out, then end by painting the concrete outcome.`
+};
+
+function buildStructureInstruction(structureKey) {
+  const guide = STRUCTURE_GUIDES[structureKey];
+  if (!guide) return "";
+  return `\n${guide} Let the body run longer than usual (roughly 4-8 sentences) so every step of the structure gets its own beat, but stay tight, no filler sentences.\n`;
+}
+
+function buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst, ctaLink, structureKey) {
   return `You are a direct-response copywriter. Rewrite the raw product/service description below into ${count} distinct polished sales copy variant(s) using the NEW / EASY / SAFE / BIG hook framework:
 
 - NEW: frame the offer as new, a fresh way, recently launched, or a shift from the old way.
@@ -285,6 +309,7 @@ ${painPointFirst ? `
 Each variant must open with the reader's specific pain point or frustration (concrete, not generic "tired of X?" filler) before pivoting to the solution. The pain point should feel like it was written by someone who has actually lived it.
 ` : ""}
 ${buildCtaInstruction(ctaLink)}
+${buildStructureInstruction(structureKey)}
 ${audience ? `Target audience: ${audience}\n` : ""}Tone: ${tone}
 
 Raw description:
@@ -297,7 +322,7 @@ Return ONLY valid JSON (no markdown fences, no commentary) matching this exact s
   "variants": [
     {
       "headline": "string",
-      "body": "string (2-4 sentences)",
+      "body": "string (${structureKey && STRUCTURE_GUIDES[structureKey] ? "4-8 sentences, one beat per structure step" : "2-4 sentences"})",
       "cta": "string (short call to action)",
       "levers_used": ["NEW","EASY","SAFE","BIG"]
     }
@@ -527,6 +552,7 @@ generateBtn.addEventListener("click", async () => {
   const useEmojis = useEmojisInput.checked;
   const painPointFirst = painPointFirstInput.checked;
   const ctaLink = ctaLinkInput.value.trim();
+  const structureKey = structureSelect.value;
 
   if (!raw) { showError("Paste a raw description first."); return; }
   if (!apiKey) {
@@ -541,7 +567,7 @@ generateBtn.addEventListener("click", async () => {
   loadingEl.style.display = "block";
 
   try {
-    const prompt = buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst, ctaLink);
+    const prompt = buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst, ctaLink, structureKey);
     const text = await callOpenRouter(apiKey, prompt);
     const variants = parseVariants(text);
     renderVariants(variants);
