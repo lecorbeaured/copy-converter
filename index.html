@@ -317,7 +317,7 @@ Raw description:
 ${raw}
 """
 
-Return ONLY valid JSON (no markdown fences, no commentary) matching this exact shape:
+Return ONLY valid, strictly parseable JSON (no markdown fences, no commentary) matching this exact shape. Every string value must be a single JSON string with no literal line breaks inside it: use the two characters backslash-n wherever the text needs a line break, and escape any double quote characters inside a string as backslash-quote.
 {
   "variants": [
     {
@@ -355,10 +355,61 @@ async function callOpenRouter(apiKey, prompt) {
   return text;
 }
 
-function parseVariants(text) {
+function sanitizeJsonWhitespace(str) {
+  let result = "";
+  let inString = false;
+  let escapeNext = false;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (escapeNext) {
+      result += ch;
+      escapeNext = false;
+      continue;
+    }
+    if (ch === "\\") {
+      result += ch;
+      escapeNext = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      result += ch;
+      continue;
+    }
+    if (inString && (ch === "\n" || ch === "\r")) {
+      result += "\\n";
+      continue;
+    }
+    if (inString && ch === "\t") {
+      result += "\\t";
+      continue;
+    }
+    result += ch;
+  }
+  return result;
+}
+
+function parseJsonLoose(text) {
   let cleaned = text.trim();
   cleaned = cleaned.replace(/^```(json)?/i, "").replace(/```$/, "").trim();
-  const parsed = JSON.parse(cleaned);
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+  }
+  try {
+    return JSON.parse(cleaned);
+  } catch (err) {
+    try {
+      return JSON.parse(sanitizeJsonWhitespace(cleaned));
+    } catch (err2) {
+      throw new Error("The model returned malformed JSON. Try again, it usually works on retry.");
+    }
+  }
+}
+
+function parseVariants(text) {
+  const parsed = parseJsonLoose(text);
   if (!parsed.variants || !Array.isArray(parsed.variants)) {
     throw new Error("Unexpected response shape from model.");
   }
@@ -409,7 +460,7 @@ Headline: ${variant.headline}
 Body: ${variant.body}
 CTA: ${variant.cta}
 
-Return ONLY valid JSON (no markdown fences, no commentary) matching this exact shape:
+Return ONLY valid, strictly parseable JSON (no markdown fences, no commentary) matching this exact shape. post_text must be a single JSON string with no literal line breaks inside it: use the two characters backslash-n wherever the text needs a line break, and escape any double quote characters inside a string as backslash-quote.
 {
   "post_text": "string (the full native post text, with line breaks written as \\n and hashtags included inline where the platform calls for them)",
   "cta": "string (short call to action; if the platform's CTA is naturally embedded in post_text, repeat the essence of it here too)"
@@ -417,9 +468,7 @@ Return ONLY valid JSON (no markdown fences, no commentary) matching this exact s
 }
 
 function parsePlatformResult(text) {
-  let cleaned = text.trim();
-  cleaned = cleaned.replace(/^```(json)?/i, "").replace(/```$/, "").trim();
-  const parsed = JSON.parse(cleaned);
+  const parsed = parseJsonLoose(text);
   if (!parsed.post_text) {
     throw new Error("Unexpected response shape from model.");
   }
@@ -474,6 +523,7 @@ function renderVariants(variants) {
 }
 
 async function handlePlatformAdapt(btn, variants) {
+  clearError();
   const idx = Number(btn.dataset.index);
   const platformKey = btn.dataset.platform;
   const variant = variants[idx];
@@ -498,7 +548,7 @@ async function handlePlatformAdapt(btn, variants) {
     const result = parsePlatformResult(text);
     renderPlatformResult(resultsContainer, platformKey, result);
   } catch (err) {
-    showError(err.message || "Something went wrong adapting for that platform.");
+    showError(`${guide.label}: ${err.message || "something went wrong adapting for that platform."}`);
   } finally {
     btn.disabled = false;
     btn.textContent = originalLabel;
