@@ -168,6 +168,14 @@
     <div class="hint" style="margin-top:6px;">If set, gets woven into the CTA in every output. On formats where raw links don't work in the text (Instagram, TikTok, voiceover), it's referenced as "link in bio" instead of pasted directly.</div>
 
     <div class="row">
+      <div>
+        <label for="positioningNotes">Positioning notes (optional)</label>
+        <input type="text" id="positioningNotes" placeholder="e.g. $9-$27 PDF guide, price at the impulse-buy threshold, targeting how-to searchers" />
+      </div>
+    </div>
+    <div class="hint" style="margin-top:6px;">Price point, asset type, packaging, or search intent from your research. Gets woven into the offer framing and CTA in every output, e.g. anchoring price, naming the format, or matching the searcher's intent.</div>
+
+    <div class="row">
       <div style="display:flex; align-items:center; gap:8px; flex:0 0 auto;">
         <input type="checkbox" id="notStatements" style="width:auto; margin:0;" />
         <label for="notStatements" style="margin:0; cursor:pointer;">Include NOT statements</label>
@@ -220,6 +228,7 @@ const notStatementsInput = document.getElementById("notStatements");
 const useEmojisInput = document.getElementById("useEmojis");
 const painPointFirstInput = document.getElementById("painPointFirst");
 const ctaLinkInput = document.getElementById("ctaLink");
+const positioningNotesInput = document.getElementById("positioningNotes");
 const structureSelect = document.getElementById("structure");
 const clearInputBtn = document.getElementById("clearInputBtn");
 const output = document.getElementById("output");
@@ -275,6 +284,11 @@ function buildCtaInstruction(ctaLink, platformKey) {
   return `\nA CTA link has been provided: ${ctaLink}. Naturally weave this exact link into the cta so the reader knows exactly where to go.\n`;
 }
 
+function buildPositioningInstruction(positioningNotes) {
+  if (!positioningNotes) return "";
+  return `\nPositioning notes from market research: ${positioningNotes}. Weave this into the offer framing naturally: if a price is given, anchor it explicitly in the cta or body (e.g. state the price, or frame it against the impulse-buy threshold if that's mentioned); if an asset type/format is given, name it (e.g. "PDF guide", "template"); if a search intent or audience is given, match the copy's angle to what that person is actually looking for. Don't just repeat these notes verbatim, translate them into persuasive copy.\n`;
+}
+
 const STRUCTURE_GUIDES = {
   pas: `Structure each variant using PAS (Problem → Agitate → Solution): open by naming the reader's problem, agitate it by making the cost or pain of inaction vivid and specific, then present the offer as the solution.`,
   aida: `Structure each variant using AIDA (Attention → Interest → Desire → Action): grab attention with a bold hook, build interest with a relevant detail or fact, create desire by painting the outcome, then close with a clear action step.`,
@@ -295,7 +309,7 @@ const HOOK_PRINCIPLES = `A strong hook bypasses resistance instead of announcing
 - Pattern interrupt: say something the reader doesn't expect from this category, don't open the way every other ad in this space opens.
 - Counter-intuitive framing where it fits naturally: "stop doing X" lands harder than "do X better", but never manufacture controversy that the rest of the copy can't back up.`;
 
-function buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst, ctaLink, structureKey) {
+function buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst, ctaLink, structureKey, positioningNotes) {
   return `You are a direct-response copywriter. Rewrite the raw product/service description below into ${count} distinct polished sales copy variant(s) using the NEW / EASY / SAFE / BIG hook framework:
 
 - NEW: frame the offer as new, a fresh way, recently launched, or a shift from the old way.
@@ -319,6 +333,7 @@ ${painPointFirst ? `
 Each variant must open with the reader's specific pain point or frustration (concrete, not generic "tired of X?" filler) before pivoting to the solution. The pain point should feel like it was written by someone who has actually lived it.
 ` : ""}
 ${buildCtaInstruction(ctaLink)}
+${buildPositioningInstruction(positioningNotes)}
 ${buildStructureInstruction(structureKey)}
 ${audience ? `Target audience: ${audience}\n` : ""}Tone: ${tone}
 
@@ -469,7 +484,7 @@ const PLATFORM_GUIDES = {
   }
 };
 
-function buildPlatformPrompt(variant, platformKey, ctaLink) {
+function buildPlatformPrompt(variant, platformKey, ctaLink, positioningNotes) {
   const guide = PLATFORM_GUIDES[platformKey];
   return `You are an expert copywriter. Adapt the following sales copy for ${guide.label}, following the format rules below exactly. Keep the core offer and the NEW/EASY/SAFE/BIG angle intact, but restructure and rewrite it to fit the format's real norms, not just paste the original text in.
 
@@ -480,6 +495,7 @@ Whatever opens this piece (first line, hook text, headline, title) is the hook: 
 
 Do not use em dashes (—) anywhere in the output. Use periods, commas, or parentheses instead.
 ${buildCtaInstruction(ctaLink, platformKey)}
+${buildPositioningInstruction(positioningNotes)}
 Source copy:
 Headline: ${variant.headline}
 Body: ${variant.body}
@@ -568,7 +584,8 @@ async function handlePlatformAdapt(btn, variants) {
 
   try {
     const ctaLink = ctaLinkInput.value.trim();
-    const prompt = buildPlatformPrompt(variant, platformKey, ctaLink);
+    const positioningNotes = positioningNotesInput.value.trim();
+    const prompt = buildPlatformPrompt(variant, platformKey, ctaLink, positioningNotes);
     const text = await callOpenRouter(apiKey, prompt);
     const result = parsePlatformResult(text);
     renderPlatformResult(resultsContainer, platformKey, result);
@@ -628,6 +645,7 @@ generateBtn.addEventListener("click", async () => {
   const painPointFirst = painPointFirstInput.checked;
   const ctaLink = ctaLinkInput.value.trim();
   const structureKey = structureSelect.value;
+  const positioningNotes = positioningNotesInput.value.trim();
 
   if (!raw) { showError("Paste a raw description first."); return; }
   if (!apiKey) {
@@ -642,7 +660,7 @@ generateBtn.addEventListener("click", async () => {
   loadingEl.style.display = "block";
 
   try {
-    const prompt = buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst, ctaLink, structureKey);
+    const prompt = buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst, ctaLink, structureKey, positioningNotes);
     const text = await callOpenRouter(apiKey, prompt);
     const variants = parseVariants(text);
     renderVariants(variants);
