@@ -288,6 +288,13 @@ function buildStructureInstruction(structureKey) {
   return `\n${guide} Let the body run longer than usual (roughly 4-8 sentences) so every step of the structure gets its own beat, but stay tight, no filler sentences.\n`;
 }
 
+const HOOK_PRINCIPLES = `A strong hook bypasses resistance instead of announcing itself as marketing. Apply these to every hook/headline/opening line:
+- Specificity over vagueness: a real number or concrete detail beats a vague superlative ("amazing results").
+- Second person: address "you", not "people" or "customers".
+- Open loop: imply an answer or reveal is coming without giving it away yet, so the reader has to keep going to resolve it.
+- Pattern interrupt: say something the reader doesn't expect from this category, don't open the way every other ad in this space opens.
+- Counter-intuitive framing where it fits naturally: "stop doing X" lands harder than "do X better", but never manufacture controversy that the rest of the copy can't back up.`;
+
 function buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst, ctaLink, structureKey) {
   return `You are a direct-response copywriter. Rewrite the raw product/service description below into ${count} distinct polished sales copy variant(s) using the NEW / EASY / SAFE / BIG hook framework:
 
@@ -297,6 +304,9 @@ function buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, pa
 - BIG: make the outcome/promise feel large, specific, and worth acting on.
 
 Each variant must clearly use at least 3 of these 4 levers, and should read like real marketing copy, not a listicle explaining the technique.
+
+${HOOK_PRINCIPLES}
+The headline is the hook: apply the principles above to it specifically.
 
 Do not use em dashes (—) anywhere in the output. Use periods, commas, or parentheses instead.
 ${useNotStatements ? `
@@ -464,6 +474,9 @@ function buildPlatformPrompt(variant, platformKey, ctaLink) {
   return `You are an expert copywriter. Adapt the following sales copy for ${guide.label}, following the format rules below exactly. Keep the core offer and the NEW/EASY/SAFE/BIG angle intact, but restructure and rewrite it to fit the format's real norms, not just paste the original text in.
 
 ${guide.instructions}
+
+${HOOK_PRINCIPLES}
+Whatever opens this piece (first line, hook text, headline, title) is the hook: apply the principles above to it specifically.
 
 Do not use em dashes (—) anywhere in the output. Use periods, commas, or parentheses instead.
 ${buildCtaInstruction(ctaLink, platformKey)}
