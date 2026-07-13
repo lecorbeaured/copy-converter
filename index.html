@@ -111,12 +111,25 @@
 <div class="wrap">
   <h1>Sales Copy Converter</h1>
   <div class="subtitle">Paste a raw description. Get it rewritten using the NEW / EASY / SAFE / BIG hook framework.</div>
-  <div class="badges">
-    <span class="badge new">NEW</span>
-    <span class="badge easy">EASY</span>
-    <span class="badge safe">SAFE</span>
-    <span class="badge big">BIG</span>
+  <div class="badges" id="leverToggles">
+    <label class="lever-toggle" style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+      <input type="checkbox" id="leverNew" checked style="width:auto; margin:0;" />
+      <span class="badge new">NEW</span>
+    </label>
+    <label class="lever-toggle" style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+      <input type="checkbox" id="leverEasy" checked style="width:auto; margin:0;" />
+      <span class="badge easy">EASY</span>
+    </label>
+    <label class="lever-toggle" style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+      <input type="checkbox" id="leverSafe" checked style="width:auto; margin:0;" />
+      <span class="badge safe">SAFE</span>
+    </label>
+    <label class="lever-toggle" style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+      <input type="checkbox" id="leverBig" checked style="width:auto; margin:0;" />
+      <span class="badge big">BIG</span>
+    </label>
   </div>
+  <div class="hint" style="margin-bottom:20px;">Uncheck any to use the rest individually or in any combination. All four on (default) keeps the original behavior: each variant hits at least 3 of 4.</div>
 
   <div class="panel">
     <div style="display:flex; align-items:center; justify-content:space-between;">
@@ -229,6 +242,16 @@ const useEmojisInput = document.getElementById("useEmojis");
 const painPointFirstInput = document.getElementById("painPointFirst");
 const ctaLinkInput = document.getElementById("ctaLink");
 const positioningNotesInput = document.getElementById("positioningNotes");
+const leverNewInput = document.getElementById("leverNew");
+const leverEasyInput = document.getElementById("leverEasy");
+const leverSafeInput = document.getElementById("leverSafe");
+const leverBigInput = document.getElementById("leverBig");
+
+function getSelectedLevers() {
+  const map = { NEW: leverNewInput, EASY: leverEasyInput, SAFE: leverSafeInput, BIG: leverBigInput };
+  const selected = Object.keys(map).filter((key) => map[key].checked);
+  return selected.length ? selected : ["NEW", "EASY", "SAFE", "BIG"];
+}
 const structureSelect = document.getElementById("structure");
 const clearInputBtn = document.getElementById("clearInputBtn");
 const output = document.getElementById("output");
@@ -309,15 +332,31 @@ const HOOK_PRINCIPLES = `A strong hook bypasses resistance instead of announcing
 - Pattern interrupt: say something the reader doesn't expect from this category, don't open the way every other ad in this space opens.
 - Counter-intuitive framing where it fits naturally: "stop doing X" lands harder than "do X better", but never manufacture controversy that the rest of the copy can't back up.`;
 
-function buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst, ctaLink, structureKey, positioningNotes) {
-  return `You are a direct-response copywriter. Rewrite the raw product/service description below into ${count} distinct polished sales copy variant(s) using the NEW / EASY / SAFE / BIG hook framework:
+const LEVER_DEFS = {
+  NEW: "frame the offer as new, a fresh way, recently launched, or a shift from the old way.",
+  EASY: "emphasize low effort, speed, or simplicity. Remove friction/complexity objections.",
+  SAFE: "reduce risk. Guarantees, no commitment, trust signals, proof.",
+  BIG: "make the outcome/promise feel large, specific, and worth acting on."
+};
 
-- NEW: frame the offer as new, a fresh way, recently launched, or a shift from the old way.
-- EASY: emphasize low effort, speed, or simplicity. Remove friction/complexity objections.
-- SAFE: reduce risk. Guarantees, no commitment, trust signals, proof.
-- BIG: make the outcome/promise feel large, specific, and worth acting on.
+function buildLeverBlock(selectedLevers) {
+  const lines = selectedLevers.map((l) => `- ${l}: ${LEVER_DEFS[l]}`).join("\n");
+  let usageInstruction;
+  if (selectedLevers.length === 1) {
+    usageInstruction = `Every variant must clearly use the ${selectedLevers[0]} lever above as its core angle. Don't force in the other levers, this variant runs on ${selectedLevers[0]} alone.`;
+  } else if (selectedLevers.length <= 3) {
+    usageInstruction = `Every variant must clearly use all ${selectedLevers.length} of these levers: ${selectedLevers.join(", ")}.`;
+  } else {
+    usageInstruction = `Each variant must clearly use at least 3 of these ${selectedLevers.length} levers.`;
+  }
+  return `${lines}\n\n${usageInstruction} Copy should read like real marketing copy, not a listicle explaining the technique.\n`;
+}
 
-Each variant must clearly use at least 3 of these 4 levers, and should read like real marketing copy, not a listicle explaining the technique.
+function buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst, ctaLink, structureKey, positioningNotes, selectedLevers) {
+  const levers = selectedLevers && selectedLevers.length ? selectedLevers : ["NEW", "EASY", "SAFE", "BIG"];
+  return `You are a direct-response copywriter. Rewrite the raw product/service description below into ${count} distinct polished sales copy variant(s) using the following hook lever(s):
+
+${buildLeverBlock(levers)}
 
 ${HOOK_PRINCIPLES}
 The headline is the hook: apply the principles above to it specifically.
@@ -486,7 +525,7 @@ const PLATFORM_GUIDES = {
 
 function buildPlatformPrompt(variant, platformKey, ctaLink, positioningNotes) {
   const guide = PLATFORM_GUIDES[platformKey];
-  return `You are an expert copywriter. Adapt the following sales copy for ${guide.label}, following the format rules below exactly. Keep the core offer and the NEW/EASY/SAFE/BIG angle intact, but restructure and rewrite it to fit the format's real norms, not just paste the original text in.
+  return `You are an expert copywriter. Adapt the following sales copy for ${guide.label}, following the format rules below exactly. Keep the core offer and persuasion angle already present in the source copy intact, don't introduce new selling angles it doesn't already use, but restructure and rewrite it to fit the format's real norms, not just paste the original text in.
 
 ${guide.instructions}
 
@@ -646,6 +685,7 @@ generateBtn.addEventListener("click", async () => {
   const ctaLink = ctaLinkInput.value.trim();
   const structureKey = structureSelect.value;
   const positioningNotes = positioningNotesInput.value.trim();
+  const selectedLevers = getSelectedLevers();
 
   if (!raw) { showError("Paste a raw description first."); return; }
   if (!apiKey) {
@@ -660,7 +700,7 @@ generateBtn.addEventListener("click", async () => {
   loadingEl.style.display = "block";
 
   try {
-    const prompt = buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst, ctaLink, structureKey, positioningNotes);
+    const prompt = buildPrompt(raw, audience, tone, count, useNotStatements, useEmojis, painPointFirst, ctaLink, structureKey, positioningNotes, selectedLevers);
     const text = await callOpenRouter(apiKey, prompt);
     const variants = parseVariants(text);
     renderVariants(variants);
