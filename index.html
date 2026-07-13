@@ -220,6 +220,16 @@
     <div id="error"></div>
   </div>
 
+  <div class="panel">
+    <label for="headlineInput">Headline &rarr; Voiceover</label>
+    <div class="hint" style="margin-top:2px; margin-bottom:8px;">Paste any headline (from this tool, or anywhere else) and get a short spoken voiceover script: ~10-15 seconds, strong hook in the first 3 seconds.</div>
+    <input type="text" id="headlineInput" placeholder="e.g. Expert-Proven Credit Report Repair Methods" />
+    <button type="button" id="headlineVoiceoverBtn">Generate voiceover</button>
+    <div id="headlineVoiceoverLoading" class="hint" style="display:none;">Generating...</div>
+    <div id="headlineVoiceoverError" style="display:none; color:#f85149; font-size:13px; margin-top:10px;"></div>
+    <div id="headlineVoiceoverResult"></div>
+  </div>
+
   <div id="output"></div>
 </div>
 
@@ -252,6 +262,12 @@ function getSelectedLevers() {
   const selected = Object.keys(map).filter((key) => map[key].checked);
   return selected.length ? selected : ["NEW", "EASY", "SAFE", "BIG"];
 }
+
+const headlineInput = document.getElementById("headlineInput");
+const headlineVoiceoverBtn = document.getElementById("headlineVoiceoverBtn");
+const headlineVoiceoverLoading = document.getElementById("headlineVoiceoverLoading");
+const headlineVoiceoverError = document.getElementById("headlineVoiceoverError");
+const headlineVoiceoverResult = document.getElementById("headlineVoiceoverResult");
 const structureSelect = document.getElementById("structure");
 const clearInputBtn = document.getElementById("clearInputBtn");
 const output = document.getElementById("output");
@@ -555,6 +571,38 @@ function parsePlatformResult(text) {
   return parsed;
 }
 
+function buildHeadlineVoiceoverPrompt(headline) {
+  return `You are a voiceover scriptwriter. Turn the headline below into a short spoken voiceover script for a short-form video (TikTok/Reels/Shorts).
+
+${HOOK_PRINCIPLES}
+The first 3 seconds (roughly the first 8-12 words) are the hook: apply the principles above to them specifically, this is what stops someone from scrolling past.
+
+Rules:
+- Total script must be spoken in about 10-15 seconds, roughly 25-40 words.
+- Write for the ear, not the eye: contractions, short clauses, natural speech rhythm.
+- No hashtags, no stage directions, no scene descriptions, no timestamps, only the spoken words.
+- Expand naturally on what the headline promises, don't just repeat the headline as the whole script.
+- Do not use em dashes (—) anywhere in the output. Use periods, commas, or parentheses instead.
+
+Headline:
+"""
+${headline}
+"""
+
+Return ONLY valid, strictly parseable JSON (no markdown fences, no commentary) matching this exact shape. script must be a single JSON string with no literal line breaks inside it: use the two characters backslash-n wherever the text needs a line break, and escape any double quote characters inside a string as backslash-quote.
+{
+  "script": "string (the full spoken voiceover script)"
+}`;
+}
+
+function parseHeadlineVoiceoverResult(text) {
+  const parsed = parseJsonLoose(text);
+  if (!parsed.script) {
+    throw new Error("Unexpected response shape from model.");
+  }
+  return parsed;
+}
+
 function renderVariants(variants) {
   output.innerHTML = "";
   variants.forEach((v, i) => {
@@ -709,6 +757,59 @@ generateBtn.addEventListener("click", async () => {
   } finally {
     generateBtn.disabled = false;
     loadingEl.style.display = "none";
+  }
+});
+
+headlineVoiceoverBtn.addEventListener("click", async () => {
+  headlineVoiceoverError.style.display = "none";
+  headlineVoiceoverError.textContent = "";
+  headlineVoiceoverResult.innerHTML = "";
+
+  const headline = headlineInput.value.trim();
+  const apiKey = apiKeyInput.value.trim();
+
+  if (!headline) {
+    headlineVoiceoverError.textContent = "Paste a headline first.";
+    headlineVoiceoverError.style.display = "block";
+    return;
+  }
+  if (!apiKey) {
+    headlineVoiceoverError.textContent = "Enter your OpenRouter API key in API settings.";
+    headlineVoiceoverError.style.display = "block";
+    settingsPanel.classList.add("open");
+    return;
+  }
+
+  localStorage.setItem(API_KEY_STORAGE, apiKey);
+
+  headlineVoiceoverBtn.disabled = true;
+  headlineVoiceoverLoading.style.display = "block";
+
+  try {
+    const prompt = buildHeadlineVoiceoverPrompt(headline);
+    const text = await callOpenRouter(apiKey, prompt);
+    const result = parseHeadlineVoiceoverResult(text);
+
+    const card = document.createElement("div");
+    card.className = "variant";
+    card.style.marginTop = "14px";
+    card.innerHTML = `
+      <div class="body">${escapeHtml(result.script)}</div>
+      <button type="button" class="copy-btn">Copy text</button>
+    `;
+    card.querySelector(".copy-btn").addEventListener("click", (e) => {
+      navigator.clipboard.writeText(result.script).then(() => {
+        e.target.textContent = "Copied!";
+        setTimeout(() => (e.target.textContent = "Copy text"), 1500);
+      });
+    });
+    headlineVoiceoverResult.appendChild(card);
+  } catch (err) {
+    headlineVoiceoverError.textContent = err.message || "Something went wrong.";
+    headlineVoiceoverError.style.display = "block";
+  } finally {
+    headlineVoiceoverBtn.disabled = false;
+    headlineVoiceoverLoading.style.display = "none";
   }
 });
 </script>
