@@ -221,10 +221,13 @@
   </div>
 
   <div class="panel">
-    <label for="headlineInput">Headline &rarr; Voiceover</label>
-    <div class="hint" style="margin-top:2px; margin-bottom:8px;">Paste any headline (from this tool, or anywhere else) and get a short spoken voiceover script that sells the offer: ~10-15 seconds, strong hook in the first 3 seconds, ends with a spoken CTA. Uses the CTA link and Positioning notes fields above if set.</div>
+    <label for="headlineInput">Headline &rarr; Voiceover / Hook Text</label>
+    <div class="hint" style="margin-top:2px; margin-bottom:8px;">Paste any headline (from this tool, or anywhere else). Voiceover gets you a short spoken script that sells the offer: ~10-15 seconds, hook in the first 3 seconds, ends with a spoken CTA. Hook Text gets you 3-5 scroll-stopping opening line options, under 8 words each, no CTA needed. Uses the CTA link and Positioning notes fields above if set.</div>
     <input type="text" id="headlineInput" placeholder="e.g. Expert-Proven Credit Report Repair Methods" />
-    <button type="button" id="headlineVoiceoverBtn">Generate voiceover</button>
+    <div class="row" style="margin-top:12px;">
+      <div style="flex:0 0 auto;"><button type="button" id="headlineVoiceoverBtn" style="margin-top:0;">Generate voiceover</button></div>
+      <div style="flex:0 0 auto;"><button type="button" id="headlineHookTextBtn" style="margin-top:0;">Generate hook text</button></div>
+    </div>
     <div id="headlineVoiceoverLoading" class="hint" style="display:none;">Generating...</div>
     <div id="headlineVoiceoverError" style="display:none; color:#f85149; font-size:13px; margin-top:10px;"></div>
     <div id="headlineVoiceoverResult"></div>
@@ -268,6 +271,7 @@ const headlineVoiceoverBtn = document.getElementById("headlineVoiceoverBtn");
 const headlineVoiceoverLoading = document.getElementById("headlineVoiceoverLoading");
 const headlineVoiceoverError = document.getElementById("headlineVoiceoverError");
 const headlineVoiceoverResult = document.getElementById("headlineVoiceoverResult");
+const headlineHookTextBtn = document.getElementById("headlineHookTextBtn");
 const structureSelect = document.getElementById("structure");
 const clearInputBtn = document.getElementById("clearInputBtn");
 const output = document.getElementById("output");
@@ -614,6 +618,34 @@ function parseHeadlineVoiceoverResult(text) {
   return parsed;
 }
 
+function buildHeadlineHookTextPrompt(headline, positioningNotes) {
+  return `You are a direct-response copywriter. The headline below is a promise. Generate 3-5 alternative scroll-stopping hook text options that could open a short-form video (TikTok/Reels/Shorts) built around that same promise.
+
+${PLATFORM_GUIDES.hook_text.instructions}
+
+${HOOK_PRINCIPLES}
+${buildPositioningInstruction(positioningNotes)}
+Do not use em dashes (—) anywhere in the output. Use periods, commas, or parentheses instead.
+
+Headline:
+"""
+${headline}
+"""
+
+Return ONLY valid, strictly parseable JSON (no markdown fences, no commentary) matching this exact shape. hook_text must be a single JSON string with each option on its own numbered line, line breaks written as backslash-n:
+{
+  "hook_text": "string (3-5 numbered lines, e.g. \\"1. ...\\n2. ...\\")"
+}`;
+}
+
+function parseHeadlineHookTextResult(text) {
+  const parsed = parseJsonLoose(text);
+  if (!parsed.hook_text) {
+    throw new Error("Unexpected response shape from model.");
+  }
+  return parsed;
+}
+
 function renderVariants(variants) {
   output.innerHTML = "";
   variants.forEach((v, i) => {
@@ -771,10 +803,32 @@ generateBtn.addEventListener("click", async () => {
   }
 });
 
-headlineVoiceoverBtn.addEventListener("click", async () => {
+function upsertHeadlineResultCard(resultType, label, bodyText, tagsHtml) {
+  let card = headlineVoiceoverResult.querySelector(`[data-result-type="${resultType}"]`);
+  if (!card) {
+    card = document.createElement("div");
+    card.dataset.resultType = resultType;
+    card.className = "variant";
+    card.style.marginTop = "14px";
+    headlineVoiceoverResult.appendChild(card);
+  }
+  card.innerHTML = `
+    <h3>${label}</h3>
+    <div class="body">${escapeHtml(bodyText)}</div>
+    ${tagsHtml ? `<div class="tags">${tagsHtml}</div>` : ""}
+    <button type="button" class="copy-btn">Copy text</button>
+  `;
+  card.querySelector(".copy-btn").addEventListener("click", (e) => {
+    navigator.clipboard.writeText(bodyText).then(() => {
+      e.target.textContent = "Copied!";
+      setTimeout(() => (e.target.textContent = "Copy text"), 1500);
+    });
+  });
+}
+
+async function runHeadlineTool({ buildFn, parseFn, resultType, label, getBodyText }) {
   headlineVoiceoverError.style.display = "none";
   headlineVoiceoverError.textContent = "";
-  headlineVoiceoverResult.innerHTML = "";
 
   const headline = headlineInput.value.trim();
   const apiKey = apiKeyInput.value.trim();
@@ -794,43 +848,53 @@ headlineVoiceoverBtn.addEventListener("click", async () => {
   localStorage.setItem(API_KEY_STORAGE, apiKey);
 
   headlineVoiceoverBtn.disabled = true;
+  headlineHookTextBtn.disabled = true;
   headlineVoiceoverLoading.style.display = "block";
 
   try {
-    const ctaLink = ctaLinkInput.value.trim();
-    const positioningNotes = positioningNotesInput.value.trim();
-    const selectedLevers = getSelectedLevers();
-    const prompt = buildHeadlineVoiceoverPrompt(headline, ctaLink, positioningNotes, selectedLevers);
+    const prompt = buildFn(headline);
     const text = await callOpenRouter(apiKey, prompt);
-    const result = parseHeadlineVoiceoverResult(text);
+    const result = parseFn(text);
+    const bodyText = getBodyText(result);
 
     const tagColors = { NEW: "new", EASY: "easy", SAFE: "safe", BIG: "big" };
     const tags = (result.levers_used || []).map((l) =>
       `<span class="badge ${tagColors[l] || ""}">${l}</span>`
     ).join("");
 
-    const card = document.createElement("div");
-    card.className = "variant";
-    card.style.marginTop = "14px";
-    card.innerHTML = `
-      <div class="body">${escapeHtml(result.script)}</div>
-      ${tags ? `<div class="tags">${tags}</div>` : ""}
-      <button type="button" class="copy-btn">Copy text</button>
-    `;
-    card.querySelector(".copy-btn").addEventListener("click", (e) => {
-      navigator.clipboard.writeText(result.script).then(() => {
-        e.target.textContent = "Copied!";
-        setTimeout(() => (e.target.textContent = "Copy text"), 1500);
-      });
-    });
-    headlineVoiceoverResult.appendChild(card);
+    upsertHeadlineResultCard(resultType, label, bodyText, tags);
   } catch (err) {
     headlineVoiceoverError.textContent = err.message || "Something went wrong.";
     headlineVoiceoverError.style.display = "block";
   } finally {
     headlineVoiceoverBtn.disabled = false;
+    headlineHookTextBtn.disabled = false;
     headlineVoiceoverLoading.style.display = "none";
   }
+}
+
+headlineVoiceoverBtn.addEventListener("click", () => {
+  const ctaLink = ctaLinkInput.value.trim();
+  const positioningNotes = positioningNotesInput.value.trim();
+  const selectedLevers = getSelectedLevers();
+  runHeadlineTool({
+    buildFn: (headline) => buildHeadlineVoiceoverPrompt(headline, ctaLink, positioningNotes, selectedLevers),
+    parseFn: parseHeadlineVoiceoverResult,
+    resultType: "voiceover",
+    label: "Voiceover",
+    getBodyText: (result) => result.script
+  });
+});
+
+headlineHookTextBtn.addEventListener("click", () => {
+  const positioningNotes = positioningNotesInput.value.trim();
+  runHeadlineTool({
+    buildFn: (headline) => buildHeadlineHookTextPrompt(headline, positioningNotes),
+    parseFn: parseHeadlineHookTextResult,
+    resultType: "hooktext",
+    label: "Hook Text",
+    getBodyText: (result) => result.hook_text
+  });
 });
 </script>
 </body>
